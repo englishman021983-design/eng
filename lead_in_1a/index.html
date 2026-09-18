@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>2.3 Email enquiries — Lead-in 1A</title>
+<style>
+  :root{
+    --paper:#faf6f0;
+    --card:#eef4f1;
+    --green:#adf0c7;
+    --blue:#c6dcff;
+    --yellow:#fff6b6;
+    --ink:#1a1a1a;
+    --muted:#595959;
+    --line:#b0b0b0;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    padding:32px 20px 64px;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Times New Roman",Georgia,serif;
+    font-size:20px;
+    line-height:1.4;
+  }
+  .wrap{max-width:900px;margin:0 auto}
+  h1{font-size:34px;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 28px;font-size:18px}
+  .board{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media (max-width:640px){.board{grid-template-columns:1fr}}
+  .col h2{font-size:18px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+  .item{
+    display:flex;align-items:center;gap:12px;
+    background:var(--card);
+    border:1px solid var(--ink);
+    border-radius:10px;
+    padding:12px 14px;
+    margin-bottom:10px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .item:hover{background:#e3ece8}
+  .item .key{
+    flex:0 0 34px;height:34px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--paper);
+    border:1px solid var(--ink);
+    border-radius:6px;
+    font-weight:700;
+  }
+  .item.selected{outline:3px solid var(--blue)}
+  .item.paired{background:var(--blue)}
+  .item.correct{background:var(--green)}
+  .item.wrong{background:#ffc6c6}
+  .item .tag{
+    margin-left:auto;
+    font-size:16px;
+    color:var(--muted);
+    min-width:22px;
+    text-align:right;
+  }
+  .bar{margin-top:28px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  button{
+    font-family:inherit;font-size:19px;
+    padding:10px 22px;
+    border:1px solid var(--ink);
+    border-radius:10px;
+    background:var(--yellow);
+    cursor:pointer;
+  }
+  button.secondary{background:var(--card)}
+  button:hover{filter:brightness(.97)}
+  .score{font-size:19px;margin-left:6px}
+  .hint{color:var(--muted);font-size:17px;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Match the words (1&ndash;4) with the definitions (a&ndash;d)</h1>
+  <p class="sub">2.3 Email enquiries &middot; Lead-in, Exercise 1A</p>
+
+  <div class="board">
+    <div class="col">
+      <h2>Words</h2>
+      <div id="words"></div>
+    </div>
+    <div class="col">
+      <h2>Definitions</h2>
+      <div id="defs"></div>
+    </div>
+  </div>
+
+  <div class="bar">
+    <button id="check">Check</button>
+    <button id="reset" class="secondary">Start again</button>
+    <span class="score" id="score"></span>
+  </div>
+
+  <p class="hint">Tap a word, then tap its definition. Tap a pair again to undo it.</p>
+</div>
+
+<script>
+const WORDS = [
+  {id:"1", text:"exchange"},
+  {id:"2", text:"purchases"},
+  {id:"3", text:"refund"},
+  {id:"4", text:"return"}
+];
+const DEFS = [
+  {id:"a", text:"things you buy"},
+  {id:"b", text:"take or send back something you buy in a shop or online"},
+  {id:"c", text:"get something different for something you buy and don\u2019t want"},
+  {id:"d", text:"get money back for something you buy but don\u2019t want"}
+];
+const KEY = {"1":"c", "2":"a", "3":"d", "4":"b"};
+
+let pairs = {};
+let selectedWord = null;
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function render(){
+  const wordsBox = document.getElementById("words");
+  const defsBox = document.getElementById("defs");
+  wordsBox.innerHTML = "";
+  defsBox.innerHTML = "";
+
+  WORDS.forEach(w => {
+    const el = document.createElement("div");
+    el.className = "item";
+    el.dataset.word = w.id;
+    el.innerHTML = '<span class="key">' + w.id + '</span><span>' + w.text + '</span><span class="tag">' + (pairs[w.id] || "") + '</span>';
+    if(selectedWord === w.id) el.classList.add("selected");
+    else if(pairs[w.id]) el.classList.add("paired");
+    el.addEventListener("click", () => onWord(w.id));
+    wordsBox.appendChild(el);
+  });
+
+  defOrder.forEach(d => {
+    const el = document.createElement("div");
+    el.className = "item";
+    el.dataset.def = d.id;
+    const owner = Object.keys(pairs).find(k => pairs[k] === d.id);
+    el.innerHTML = '<span class="key">' + d.id + '</span><span>' + d.text + '</span><span class="tag">' + (owner || "") + '</span>';
+    if(owner) el.classList.add("paired");
+    el.addEventListener("click", () => onDef(d.id));
+    defsBox.appendChild(el);
+  });
+}
+
+function onWord(id){
+  if(pairs[id]){ delete pairs[id]; selectedWord = null; }
+  else { selectedWord = (selectedWord === id) ? null : id; }
+  clearMarks();
+  render();
+}
+
+function onDef(id){
+  const owner = Object.keys(pairs).find(k => pairs[k] === id);
+  if(owner){ delete pairs[owner]; clearMarks(); render(); return; }
+  if(!selectedWord) return;
+  pairs[selectedWord] = id;
+  selectedWord = null;
+  clearMarks();
+  render();
+}
+
+function clearMarks(){
+  document.getElementById("score").textContent = "";
+}
+
+document.getElementById("check").addEventListener("click", () => {
+  let right = 0;
+  document.querySelectorAll("#words .item").forEach(el => {
+    const w = el.dataset.word;
+    el.classList.remove("correct","wrong","paired","selected");
+    if(!pairs[w]) return;
+    if(pairs[w] === KEY[w]){ el.classList.add("correct"); right++; }
+    else el.classList.add("wrong");
+  });
+  document.querySelectorAll("#defs .item").forEach(el => {
+    const d = el.dataset.def;
+    const owner = Object.keys(pairs).find(k => pairs[k] === d);
+    el.classList.remove("correct","wrong","paired");
+    if(!owner) return;
+    if(KEY[owner] === d) el.classList.add("correct");
+    else el.classList.add("wrong");
+  });
+  document.getElementById("score").textContent = right + " / 4 correct";
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  pairs = {};
+  selectedWord = null;
+  defOrder = shuffle(DEFS);
+  clearMarks();
+  render();
+});
+
+let defOrder = shuffle(DEFS);
+render();
+</script>
+</body>
+</html>
